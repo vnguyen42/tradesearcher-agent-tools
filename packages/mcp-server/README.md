@@ -51,9 +51,9 @@ Inspect one backtest without flooding context. `includeEquityCurve` can return t
 }
 ```
 
-Backtest rows include `strategy.sourceAvailability` when known:
+Backtest and compare rows include `strategy.sourceAvailability` when known:
 
-- `yes`: source code is available to this account
+- `available`: source text is available to this account. This does not prove the text is a complete standalone Pine strategy.
 - `no`: source code is not available for this strategy
 - `private`: source exists but this account cannot view it
 

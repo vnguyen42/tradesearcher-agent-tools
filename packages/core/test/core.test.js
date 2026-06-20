@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TradeSearcherClient, compactBacktestForComparison, formatLimitNotice, limitTradesInResponse, summarizeBacktest } from '../src/index.js';
+import { TradeSearcherClient, compactAgentResponse, compactBacktestForComparison, formatLimitNotice, limitTradesInResponse, summarizeBacktest } from '../src/index.js';
 
 test('client sends API key and query params', async () => {
   const seen = {};
@@ -60,7 +60,7 @@ test('format helpers produce compact trader-readable output', () => {
   const backtest = {
     id: 123,
     symbol: { name: 'BTCUSD' },
-    strategy: { id: 456, name: 'Trend Strategy', sourceAvailability: 'yes' },
+    strategy: { id: 456, name: 'Trend Strategy', sourceAvailability: 'available', sourceAvailable: true },
     timeframe: '60',
     latestTradeDate: '2026-01-02T00:00:00.000Z',
     metrics: {
@@ -78,7 +78,7 @@ test('format helpers produce compact trader-readable output', () => {
   assert.match(summary, /strategy #456/);
   assert.match(summary, /BTCUSD/);
   assert.match(summary, /latest 2026-01-02/);
-  assert.match(summary, /source yes/);
+  assert.match(summary, /source available/);
   assert.deepEqual(compactBacktestForComparison(backtest), {
     id: 123,
     symbol: 'BTCUSD',
@@ -93,7 +93,73 @@ test('format helpers produce compact trader-readable output', () => {
     totalTrades: 84,
     latestTradeDate: '2026-01-02T00:00:00.000Z',
     hiddenStrategyDetails: false,
-    sourceAvailability: 'yes',
+    sourceAvailability: 'available',
+    sourceAvailable: true,
+  });
+});
+
+test('compact response keeps the agent-useful fields and removes noisy metrics by default', () => {
+  const compact = compactAgentResponse({
+    data: {
+      id: 123,
+      symbol: { id: 1, name: 'BINANCE:BTCUSD', ticker: 'BTCUSD', type: 'crypto', ignored: 'x' },
+      strategy: { id: 456, name: 'Trend Strategy', sourceAvailability: 'available', sourceAvailable: true, description: 'long text' },
+      timeframe: '60',
+      metrics: {
+        netProfitPercent: 22.1,
+        profitFactor: 1.91,
+        sharpeRatio: 1.45,
+        maxDrawdownPercent: 0.44,
+        totalTrades: 84,
+        grossProfit: 999,
+      },
+    },
+    account: { tier: 'premium', internal: true },
+    limits: { isLimited: false },
+  });
+
+  assert.deepEqual(compact.data.metrics, {
+    netProfitPercent: 22.1,
+    profitFactor: 1.91,
+    sharpeRatio: 1.45,
+    maxDrawdownPercent: 0.44,
+    totalTrades: 84,
+  });
+  assert.equal(compact.data.strategy.sourceAvailability, 'available');
+  assert.equal(compact.data.symbol.ignored, undefined);
+  assert.equal(compact.account.internal, undefined);
+});
+
+test('compact response preserves compare rows', () => {
+  const compact = compactAgentResponse({
+    data: [{
+      id: 84,
+      symbol: 'BINANCE:BTCUSD',
+      strategy: 'Advanced MA Cross',
+      timeframe: '15',
+      netProfitPercent: 1.2,
+      profitFactor: 1.4,
+      sharpeRatio: 0.3,
+      maxDrawdownPercent: 0.2,
+      totalTrades: 50,
+      sourceAvailability: 'available',
+      sourceAvailable: true,
+      noisy: 'drop me',
+    }],
+  });
+
+  assert.deepEqual(compact.data[0], {
+    id: 84,
+    symbol: 'BINANCE:BTCUSD',
+    strategy: 'Advanced MA Cross',
+    timeframe: '15',
+    netProfitPercent: 1.2,
+    profitFactor: 1.4,
+    sharpeRatio: 0.3,
+    maxDrawdownPercent: 0.2,
+    totalTrades: 50,
+    sourceAvailability: 'available',
+    sourceAvailable: true,
   });
 });
 

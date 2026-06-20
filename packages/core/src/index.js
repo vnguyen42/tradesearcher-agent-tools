@@ -111,7 +111,17 @@ export function compactBacktestForComparison(backtest) {
     totalTrades: backtest.metrics?.totalTrades,
     latestTradeDate: backtest.latestTradeDate,
     hiddenStrategyDetails: backtest.premium?.hiddenStrategyDetails,
-    sourceAvailability: backtest.strategy?.sourceAvailability,
+    sourceAvailability: formatSourceAvailability(backtest.strategy?.sourceAvailability, backtest.strategy?.sourceAvailable),
+    sourceAvailable: backtest.strategy?.sourceAvailable,
+  };
+}
+
+export function compactAgentResponse(response, options = {}) {
+  return {
+    data: compactData(response?.data, options),
+    ...(response?.meta && { meta: compactMeta(response.meta) }),
+    ...(response?.account && { account: compactAccount(response.account) }),
+    ...(response?.limits && { limits: compactLimits(response.limits) }),
   };
 }
 
@@ -143,8 +153,200 @@ export function summarizeBacktest(backtest) {
     `Sharpe ${formatNumber(metric.sharpeRatio)}`,
     `DD ${formatNumber(metric.maxDrawdownPercent)}%`,
     `${metric.totalTrades ?? '?'} trades`,
-    backtest.strategy?.sourceAvailability ? `source ${backtest.strategy.sourceAvailability}` : null,
+    formatSourceAvailability(backtest.strategy?.sourceAvailability, backtest.strategy?.sourceAvailable)
+      ? `source ${formatSourceAvailability(backtest.strategy?.sourceAvailability, backtest.strategy?.sourceAvailable)}`
+      : null,
   ].filter(Boolean).join(' | ');
+}
+
+export function formatSourceAvailability(value, sourceAvailable) {
+  if (value === 'yes') return 'available';
+  if (value) return value;
+  if (sourceAvailable === true) return 'available';
+  if (sourceAvailable === false) return 'no';
+  return null;
+}
+
+function compactData(data, options) {
+  if (Array.isArray(data)) return data.map((item) => compactDataItem(item, options));
+  return compactDataItem(data, options);
+}
+
+function compactDataItem(item, options) {
+  if (!item || typeof item !== 'object') return item ?? null;
+  if (item.backtest) {
+    return {
+      rank: item.rank,
+      weightedScore: item.weightedScore,
+      latestTradeDate: item.latestTradeDate,
+      backtest: compactBacktest(item.backtest, options),
+    };
+  }
+  if (item.netProfitPercent !== undefined && item.profitFactor !== undefined && item.symbol !== undefined && !item.metrics) {
+    return compactComparisonRow(item);
+  }
+  if (item.averages || item.repainting || item.sourceCode !== undefined || item.tvId) return compactStrategy(item, options);
+  if (item.metrics || item.timeframe !== undefined || item.latestTradeDate !== undefined) return compactBacktest(item, options);
+  if (item.ticker !== undefined || item.name !== undefined) return compactSymbol(item);
+  return item;
+}
+
+function compactComparisonRow(row) {
+  return removeEmpty({
+    id: row.id,
+    symbol: row.symbol,
+    strategy: row.strategy,
+    timeframe: row.timeframe,
+    strategyType: row.strategyType,
+    netProfitPercent: row.netProfitPercent,
+    profitFactor: row.profitFactor,
+    sharpeRatio: row.sharpeRatio,
+    sortinoRatio: row.sortinoRatio,
+    maxDrawdownPercent: row.maxDrawdownPercent,
+    totalTrades: row.totalTrades,
+    latestTradeDate: row.latestTradeDate,
+    hiddenStrategyDetails: row.hiddenStrategyDetails,
+    sourceAvailability: formatSourceAvailability(row.sourceAvailability, row.sourceAvailable),
+    sourceAvailable: row.sourceAvailable,
+  });
+}
+
+function compactBacktest(backtest, options) {
+  if (!backtest || typeof backtest !== 'object') return backtest ?? null;
+  return removeEmpty({
+    id: backtest.id,
+    symbol: compactSymbol(backtest.symbol),
+    strategy: compactStrategySummary(backtest.strategy),
+    timeframe: backtest.timeframe,
+    strategyType: backtest.strategyType,
+    latestTradeDate: backtest.latestTradeDate,
+    period: backtest.period,
+    metrics: options.details ? backtest.metrics : compactMetrics(backtest.metrics),
+    ...(Array.isArray(backtest.recentTrades) && { recentTrades: backtest.recentTrades }),
+    ...(Array.isArray(backtest.trades) && { trades: backtest.trades }),
+    ...(Array.isArray(backtest.equityCurve) && { equityCurve: backtest.equityCurve }),
+    ...(Array.isArray(backtest.drawdownCurve) && { drawdownCurve: backtest.drawdownCurve }),
+    ...(Array.isArray(backtest.buyHoldCurve) && { buyHoldCurve: backtest.buyHoldCurve }),
+    ...(backtest.tradeResultInfo && { tradeResultInfo: backtest.tradeResultInfo }),
+    ...(backtest.premium && { premium: backtest.premium }),
+  });
+}
+
+function compactStrategy(strategy, options) {
+  if (!strategy || typeof strategy !== 'object') return strategy ?? null;
+  return removeEmpty({
+    ...compactStrategySummary(strategy),
+    tvId: strategy.tvId,
+    access: strategy.access,
+    description: strategy.description,
+    summary: strategy.summary,
+    tradingViewUrl: strategy.tradingViewUrl,
+    path: strategy.path,
+    author: strategy.author,
+    symbol: compactSymbol(strategy.symbol),
+    tags: strategy.tags,
+    tagCategories: strategy.tagCategories,
+    timeframes: strategy.timeframes,
+    tradeability: strategy.tradeability,
+    indicators: strategy.indicators,
+    entryCriteria: strategy.entryCriteria,
+    exitCriteria: strategy.exitCriteria,
+    repainting: strategy.repainting,
+    averages: strategy.averages,
+    ...(options.source !== false && strategy.sourceCode && { sourceCode: strategy.sourceCode }),
+  });
+}
+
+function compactStrategySummary(strategy) {
+  if (!strategy || typeof strategy !== 'object') return strategy ?? null;
+  return removeEmpty({
+    id: strategy.id,
+    name: strategy.name,
+    hidden: strategy.hidden,
+    message: strategy.message,
+    strategyType: strategy.strategyType,
+    mainType: strategy.mainType,
+    sourceAvailability: formatSourceAvailability(strategy.sourceAvailability, strategy.sourceAvailable),
+    sourceAvailable: strategy.sourceAvailable,
+  });
+}
+
+function compactSymbol(symbol) {
+  if (!symbol || typeof symbol !== 'object') return symbol ?? null;
+  return removeEmpty({
+    id: symbol.id,
+    name: symbol.name,
+    ticker: symbol.ticker,
+    type: symbol.type,
+    exchange: symbol.exchange,
+    description: symbol.description,
+    currency: symbol.currency,
+    baseCurrency: symbol.baseCurrency,
+    backtestsCount: symbol.backtestsCount,
+    matchReason: symbol.matchReason,
+    recommended: symbol.recommended,
+    recommendationReason: symbol.recommendationReason,
+  });
+}
+
+function compactMetrics(metrics) {
+  if (!metrics || typeof metrics !== 'object') return metrics ?? null;
+  return removeEmpty({
+    netProfitPercent: metrics.netProfitPercent,
+    profitFactor: metrics.profitFactor,
+    sharpeRatio: metrics.sharpeRatio,
+    sortinoRatio: metrics.sortinoRatio,
+    maxDrawdownPercent: metrics.maxDrawdownPercent,
+    totalTrades: metrics.totalTrades,
+    percentProfitable: metrics.percentProfitable,
+    latestTradeDate: metrics.latestTradeDate,
+    robustnessScore: metrics.robustnessScore,
+    qualityGatePass: metrics.qualityGatePass,
+  });
+}
+
+function compactMeta(meta) {
+  return removeEmpty({
+    ...meta,
+    recommended: compactSymbol(meta.recommended),
+    symbolMatch: meta.symbolMatch ? {
+      ...meta.symbolMatch,
+      matched: compactSymbol(meta.symbolMatch.matched),
+      recommended: compactSymbol(meta.symbolMatch.recommended),
+      alternatives: Array.isArray(meta.symbolMatch.alternatives)
+        ? meta.symbolMatch.alternatives.map(compactSymbol)
+        : meta.symbolMatch.alternatives,
+    } : undefined,
+    symbolSuggestions: Array.isArray(meta.symbolSuggestions)
+      ? meta.symbolSuggestions.map(compactSymbol)
+      : meta.symbolSuggestions,
+  });
+}
+
+function compactAccount(account) {
+  return removeEmpty({
+    tier: account.tier,
+    limitSummary: account.limitSummary,
+    upgradeUrl: account.upgradeUrl,
+    freeMonthlyLimit: account.freeMonthlyLimit,
+    freeMonthlyRemaining: account.freeMonthlyRemaining,
+  });
+}
+
+function compactLimits(limits) {
+  if (!limits || !limits.isLimited) return limits;
+  return removeEmpty({
+    isLimited: limits.isLimited,
+    reason: limits.reason,
+    message: limits.message,
+    upgradeCallToAction: limits.upgradeCallToAction,
+    upgradeUrl: limits.upgradeUrl,
+  });
+}
+
+function removeEmpty(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
 }
 
 function limitBacktestTrades(backtest, limit) {

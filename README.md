@@ -53,7 +53,7 @@ tradesearcher search BTCUSD --sort robustness
 
 Use `tradesearcher schema` to print JSON command schemas for agents. Use `tradesearcher schema backtest` or `tradesearcher schema strategy` for one command.
 
-Search and best rows show `source yes`, `source no`, or `source private` when TradeSearcher knows whether Pine source code is available.
+Search, best, and compare rows show `source available`, `source no`, or `source private` when TradeSearcher knows whether Pine source text is available. `available` means TradeSearcher has source text for the strategy; it does not prove that the text is a complete standalone Pine strategy.
 
 Export Pine source for a backtest strategy:
 

@@ -2,7 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { createClient, limitTradesInResponse } from '@tradesearcher/core';
+import { createClient, limitTradesInResponse, compactAgentResponse } from '@tradesearcher/core';
 
 const client = createClient();
 
@@ -133,11 +133,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       throw new Error(`Unknown tool: ${request.params.name}`);
   }
 
+  const compact = compactAgentResponse(result, {
+    details: Boolean(args.details),
+    source: Boolean(args.includeSourceCode),
+  });
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(result, null, 2),
+        text: JSON.stringify(compact, null, 2),
       },
     ],
   };

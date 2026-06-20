@@ -5,7 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { createClient, formatLimitNotice, summarizeBacktest, compactBacktestForComparison, limitTradesInResponse } from '@tradesearcher/core';
+import { createClient, formatLimitNotice, summarizeBacktest, compactBacktestForComparison, limitTradesInResponse, compactAgentResponse, formatSourceAvailability } from '@tradesearcher/core';
 
 const CONFIG_DIR = path.join(os.homedir(), '.tradesearcher');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
@@ -56,7 +56,7 @@ const COMMAND_SCHEMAS = {
       sort: enumFlag(ALLOWED_SORTS),
       order: enumFlag(ALLOWED_ORDERS),
     },
-    responseHints: ['Use --json for full response shape.', 'Rows include strategy.sourceAvailability when the backend knows it.'],
+    responseHints: ['Use --json for compact machine-readable output.', 'Rows include strategy.sourceAvailability when the backend knows it.'],
   },
   best: {
     description: 'Get top ranked backtests for a symbol.',
@@ -81,7 +81,7 @@ const COMMAND_SCHEMAS = {
     description: 'Get one strategy and optionally source code.',
     positional: [{ name: 'strategyId', type: 'integer', required: true }],
     flags: { ...commonFlags(), source: booleanFlag('Request Pine source code. Premium and source availability may be required.') },
-    responseHints: ['Use --json --source for machine-readable sourceCode.', 'sourceAvailability is yes, no, or private.'],
+    responseHints: ['Use --json --source for machine-readable sourceCode.', 'sourceAvailability is available, private, or no. Available means TradeSearcher has source text; it does not prove the text is a complete Pine strategy.'],
   },
   export: {
     description: 'Export Pine source for a backtest strategy.',
@@ -293,6 +293,7 @@ function formatSymbol(symbol) {
     symbol.description,
     symbol.backtestsCount != null ? `${symbol.backtestsCount} backtests` : null,
     symbol.matchReason ? `match ${symbol.matchReason}` : null,
+    symbol.recommended ? 'recommended most backtests' : null,
   ].filter(Boolean).join(' | ');
 }
 
@@ -300,10 +301,13 @@ function formatSymbolMatchNotice(match) {
   if (!match) return '';
   if (!match.matched) return `Symbol match: ${match.message}`;
   const matched = match.matched;
+  const recommended = match.recommended && match.recommended.name !== matched.name
+    ? ` Recommended match with more backtests: ${match.recommended.name}${match.recommended.backtestsCount != null ? ` (${match.recommended.backtestsCount} backtests)` : ''}.`
+    : '';
   const alternatives = Array.isArray(match.alternatives) && match.alternatives.length > 0
     ? ` Alternatives: ${match.alternatives.map((item) => item.name).join(', ')}.`
     : '';
-  return `Symbol match: ${match.input} -> ${matched.name}${matched.ticker ? ` (${matched.ticker})` : ''}.${alternatives}`;
+  return `Symbol match: ${match.input} -> ${matched.name}${matched.ticker ? ` (${matched.ticker})` : ''}.${recommended}${alternatives}`;
 }
 
 function formatRankingNotice(meta) {
@@ -353,7 +357,7 @@ function formatStrategySummary(strategy) {
     averages.profitFactor != null ? `avg PF ${formatNumber(averages.profitFactor)}` : null,
     averages.sharpeRatio != null ? `avg Sharpe ${formatNumber(averages.sharpeRatio)}` : null,
     averages.maxDrawdownPercent != null ? `avg DD ${formatPercent(averages.maxDrawdownPercent)}` : null,
-    strategy.sourceAvailability ? `source ${strategy.sourceAvailability}` : null,
+    formatSourceAvailability(strategy.sourceAvailability, strategy.sourceAvailable) ? `source ${formatSourceAvailability(strategy.sourceAvailability, strategy.sourceAvailable)}` : null,
   ].filter(Boolean).join(' | ');
 }
 
@@ -418,7 +422,7 @@ function isComparisonRow(row) {
 }
 
 function formatComparisonTable(rows) {
-  const headers = ['Backtest', 'Symbol', 'Strategy', 'TF', 'ROI', 'PF', 'Sharpe', 'DD', 'Trades'];
+  const headers = ['Backtest', 'Symbol', 'Strategy', 'TF', 'ROI', 'PF', 'Sharpe', 'DD', 'Trades', 'Source'];
   const tableRows = rows.map((row) => [
     `#${row.id}`,
     row.symbol || '-',
@@ -429,6 +433,7 @@ function formatComparisonTable(rows) {
     formatNumber(row.sharpeRatio) || '-',
     formatPercent(row.maxDrawdownPercent) || '-',
     formatInteger(row.totalTrades) || '-',
+    formatSourceAvailability(row.sourceAvailability, row.sourceAvailable) || '-',
   ]);
   const widths = headers.map((header, index) => Math.max(header.length, ...tableRows.map((row) => String(row[index]).length)));
   const renderRow = (row) => row.map((cell, index) => String(cell).padEnd(widths[index], ' ')).join(' | ');
@@ -696,9 +701,13 @@ function hasRows(response) {
 }
 
 function formatJsonResponse(response, flags) {
-  if (!flags.trades && !flags.tradeLimit) return response;
-  return limitTradesInResponse(response, flags.tradeLimit || 20);
+  const limited = (!flags.trades && !flags.tradeLimit) ? response : limitTradesInResponse(response, flags.tradeLimit || 20);
+  return compactAgentResponse(limited, {
+    details: Boolean(flags.details),
+    source: Boolean(flags.source),
+  });
 }
+
 
 function isStrategy(row) {
   return Boolean(row && (row.averages || row.repainting || row.sourceCode !== undefined || row.tvId || row.entryCriteria || row.exitCriteria));

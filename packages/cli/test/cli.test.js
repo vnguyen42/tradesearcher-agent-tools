@@ -44,6 +44,7 @@ test('symbols command prints readable symbol matches', async () => {
             description: 'Apple Inc.',
             backtestsCount: 42,
             matchReason: 'ticker_exact',
+            recommended: true,
           },
         ],
         account: { tier: 'premium' },
@@ -67,6 +68,7 @@ test('symbols command prints readable symbol matches', async () => {
   assert.match(output, /symbol #10/);
   assert.match(output, /NASDAQ:AAPL/);
   assert.match(output, /42 backtests/);
+  assert.match(output, /recommended most backtests/);
 });
 
 test('search prints automatic symbol match metadata', async () => {
@@ -85,6 +87,7 @@ test('search prints automatic symbol match metadata', async () => {
           symbolMatch: {
             input: 'AAPL',
             matched: { id: 10, name: 'NASDAQ:AAPL', ticker: 'AAPL' },
+            recommended: { id: 12, name: 'NASDAQ:AAPL', ticker: 'AAPL', backtestsCount: 42 },
             alternatives: [{ id: 11, name: 'MIL:AAPL', ticker: 'AAPL' }],
             isAutomatic: true,
             message: 'Matched AAPL to NASDAQ:AAPL.',
@@ -110,6 +113,49 @@ test('search prints automatic symbol match metadata', async () => {
   const output = lines.join('\n');
   assert.match(output, /Symbol match: AAPL -> NASDAQ:AAPL \(AAPL\)/);
   assert.match(output, /Alternatives: MIL:AAPL/);
+});
+
+test('search prints recommended symbol when it has more backtests than the exact match', async () => {
+  const lines = [];
+  process.env.TRADESEARCHER_API_URL = 'https://example.test';
+  process.env.TRADESEARCHER_API_KEY = 'ts_test_from_env';
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    async text() {
+      return JSON.stringify({
+        data: [],
+        meta: {
+          symbolMatch: {
+            input: 'BTCUSD',
+            matched: { id: 10, name: 'BINANCE:BTCUSD', ticker: 'BTCUSD', backtestsCount: 2 },
+            recommended: { id: 12, name: 'BINANCE:BTCUSDT', ticker: 'BTCUSDT', backtestsCount: 200 },
+            alternatives: [],
+            isAutomatic: false,
+            message: 'Matched BTCUSD to BINANCE:BTCUSD. Recommended match with more backtests: BINANCE:BTCUSDT.',
+          },
+        },
+        account: { tier: 'premium' },
+        limits: { isLimited: false },
+      });
+    },
+  });
+
+  try {
+    await main(['search', 'BTCUSD'], {
+      log: (message) => lines.push(message),
+      error: (message) => lines.push(message),
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.TRADESEARCHER_API_URL;
+    delete process.env.TRADESEARCHER_API_KEY;
+  }
+
+  const output = lines.join('\n');
+  assert.match(output, /Recommended match with more backtests: BINANCE:BTCUSDT \(200 backtests\)/);
 });
 
 test('search prints symbol suggestions when no exact symbol matched', async () => {
@@ -419,7 +465,8 @@ test('strategy prints human-readable details and source code', async () => {
           indicators: ['Range filter'],
           repainting: { repainting: false, totalChecks: 5, passedChecks: 5, warningChecks: 0, errorChecks: 0 },
           averages: { tests: 12, netProfitPercent: 2.5, profitFactor: 1.8, sharpeRatio: 0.7, maxDrawdownPercent: 0.4 },
-          sourceAvailability: 'yes',
+          sourceAvailability: 'available',
+          sourceAvailable: true,
           sourceCode: 'strategy("Range Filter")',
         },
         account: { tier: 'premium' },
@@ -441,7 +488,7 @@ test('strategy prints human-readable details and source code', async () => {
 
   const output = lines.join('\n');
   assert.match(output, /strategy #31/);
-  assert.match(output, /source yes/);
+  assert.match(output, /source available/);
   assert.doesNotMatch(output, /symbol #31/);
   assert.match(output, /Averages/);
   assert.match(output, /Source code/);
@@ -481,7 +528,7 @@ test('export writes Pine source for a backtest strategy', async () => {
           ? {
               data: {
                 id: 839,
-                strategy: { id: 31, name: 'Range Filter', sourceAvailability: 'yes' },
+                strategy: { id: 31, name: 'Range Filter', sourceAvailability: 'available', sourceAvailable: true },
                 symbol: { name: 'BINANCE:LTCUSD' },
                 metrics: { netProfitPercent: 1, profitFactor: 2, sharpeRatio: 0.5, maxDrawdownPercent: 0.2, totalTrades: 20 },
               },
@@ -492,7 +539,8 @@ test('export writes Pine source for a backtest strategy', async () => {
               data: {
                 id: 31,
                 name: 'Range Filter',
-                sourceAvailability: 'yes',
+                sourceAvailability: 'available',
+                sourceAvailable: true,
                 sourceCode: 'strategy("Range Filter")',
               },
               account: { tier: 'premium' },
@@ -575,7 +623,11 @@ test('compare prints a readable table by default', async () => {
           data: {
             id,
             symbol: { name: id === 84 ? 'BINANCE:BTCUSD' : 'NASDAQ:AAPL' },
-            strategy: { name: id === 84 ? 'Advanced MA Cross' : 'VWAP Strategy' },
+            strategy: {
+              name: id === 84 ? 'Advanced MA Cross' : 'VWAP Strategy',
+              sourceAvailability: id === 84 ? 'available' : 'no',
+              sourceAvailable: id === 84,
+            },
             timeframe: id === 84 ? '15' : '60',
             metrics: {
               netProfitPercent: id === 84 ? 1.2 : 2.3,
@@ -608,6 +660,8 @@ test('compare prints a readable table by default', async () => {
   assert.match(output, /#84/);
   assert.match(output, /BINANCE:BTCUSD/);
   assert.match(output, /VWAP Strategy/);
+  assert.match(output, /Source/);
+  assert.match(output, /available/);
   assert.doesNotMatch(output, /^\{/m);
 });
 
