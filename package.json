@@ -1,0 +1,16 @@
+{
+  "name": "tradesearcher-agent-tools",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node --test packages/core/test/*.test.js packages/cli/test/*.test.js",
+    "check": "node --check packages/core/src/index.js && node --check packages/cli/src/index.js && node --check packages/mcp-server/src/index.js",
+    "build": "npm run build --workspaces --if-present",
+    "pack:dry-run": "npm pack --workspaces --dry-run",
+    "release:check": "npm run check && npm test && npm run build && npm run pack:dry-run"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@tradesearcher/cli",
+  "version": "0.1.0",
+  "description": "TradeSearcher command line tools for agents and traders",
+  "type": "module",
+  "bin": {
+    "tradesearcher": "src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node --check src/index.js",
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@tradesearcher/core": "0.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
