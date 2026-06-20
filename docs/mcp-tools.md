@@ -12,6 +12,11 @@ Recommended flow:
 6. Use `compare_backtests` to compare final candidates.
 
 All responses include `account` and `limits` when relevant. If output is limited, relay the upgrade message and link to the user.
+Backtest rows include `strategy.sourceAvailability` when known:
+
+- `yes`: source code is available to this account with `get_strategy` and `includeSourceCode: true`
+- `no`: source code is not available for this strategy
+- `private`: source exists but this account cannot view it
 
 Upgrade URL: https://tradesearcher.ai/app/premium
 
@@ -133,6 +138,8 @@ Schema:
   "includeSourceCode": "boolean, optional"
 }
 ```
+
+Response note: `sourceAvailability` is `yes`, `no`, or `private`. When `includeSourceCode` is true and source is available, the response includes `sourceCode`.
 
 Example:
 

@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { main } from '../src/index.js';
 
 test('help mentions simple setup and commands', async () => {
@@ -17,6 +20,8 @@ test('help mentions simple setup and commands', async () => {
   assert.match(output, /sharpeRatio/);
   assert.match(output, /profitFactor/);
   assert.match(output, /netProfitPercent/);
+  assert.match(output, /tradesearcher export 12345 --pine --out strategy\.pine/);
+  assert.match(output, /tradesearcher schema backtest/);
 });
 
 test('symbols command prints readable symbol matches', async () => {
@@ -414,6 +419,7 @@ test('strategy prints human-readable details and source code', async () => {
           indicators: ['Range filter'],
           repainting: { repainting: false, totalChecks: 5, passedChecks: 5, warningChecks: 0, errorChecks: 0 },
           averages: { tests: 12, netProfitPercent: 2.5, profitFactor: 1.8, sharpeRatio: 0.7, maxDrawdownPercent: 0.4 },
+          sourceAvailability: 'yes',
           sourceCode: 'strategy("Range Filter")',
         },
         account: { tier: 'premium' },
@@ -435,10 +441,83 @@ test('strategy prints human-readable details and source code', async () => {
 
   const output = lines.join('\n');
   assert.match(output, /strategy #31/);
+  assert.match(output, /source yes/);
   assert.doesNotMatch(output, /symbol #31/);
   assert.match(output, /Averages/);
   assert.match(output, /Source code/);
   assert.match(output, /strategy\("Range Filter"\)/);
+});
+
+test('schema command prints command JSON schemas', async () => {
+  const lines = [];
+
+  await main(['schema', 'backtest'], {
+    log: (message) => lines.push(message),
+    error: (message) => lines.push(message),
+  });
+
+  const parsed = JSON.parse(lines.join('\n'));
+  assert.equal(parsed.backtest.flags.trades.type, 'boolean');
+  assert.equal(parsed.backtest.flags.equity.type, 'boolean');
+  assert.match(parsed.backtest.responseHints.join(' '), /machine-readable trades/);
+});
+
+test('export writes Pine source for a backtest strategy', async () => {
+  const lines = [];
+  const requestedUrls = [];
+  const outFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tradesearcher-cli-')), 'strategy.pine');
+  process.env.TRADESEARCHER_API_URL = 'https://example.test';
+  process.env.TRADESEARCHER_API_KEY = 'ts_test_from_env';
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(String(url));
+    const isBacktest = String(url).includes('/api/agent/backtests/839');
+    return {
+      ok: true,
+      status: 200,
+      async text() {
+        return JSON.stringify(isBacktest
+          ? {
+              data: {
+                id: 839,
+                strategy: { id: 31, name: 'Range Filter', sourceAvailability: 'yes' },
+                symbol: { name: 'BINANCE:LTCUSD' },
+                metrics: { netProfitPercent: 1, profitFactor: 2, sharpeRatio: 0.5, maxDrawdownPercent: 0.2, totalTrades: 20 },
+              },
+              account: { tier: 'premium' },
+              limits: { isLimited: false },
+            }
+          : {
+              data: {
+                id: 31,
+                name: 'Range Filter',
+                sourceAvailability: 'yes',
+                sourceCode: 'strategy("Range Filter")',
+              },
+              account: { tier: 'premium' },
+              limits: { isLimited: false },
+            });
+      },
+    };
+  };
+
+  try {
+    await main(['export', '839', '--pine', '--out', outFile], {
+      log: (message) => lines.push(message),
+      error: (message) => lines.push(message),
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.TRADESEARCHER_API_URL;
+    delete process.env.TRADESEARCHER_API_KEY;
+  }
+
+  assert.match(requestedUrls[0], /backtests\/839/);
+  assert.match(requestedUrls[1], /strategies\/31/);
+  assert.match(requestedUrls[1], /includeSourceCode=true/);
+  assert.equal(fs.readFileSync(outFile, 'utf8'), 'strategy("Range Filter")');
+  assert.match(lines.join('\n'), /Exported Pine source/);
 });
 
 test('strategy source message is specific for premium accounts when missing', async () => {

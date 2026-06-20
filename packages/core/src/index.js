@@ -111,6 +111,7 @@ export function compactBacktestForComparison(backtest) {
     totalTrades: backtest.metrics?.totalTrades,
     latestTradeDate: backtest.latestTradeDate,
     hiddenStrategyDetails: backtest.premium?.hiddenStrategyDetails,
+    sourceAvailability: backtest.strategy?.sourceAvailability,
   };
 }
 
@@ -142,6 +143,7 @@ export function summarizeBacktest(backtest) {
     `Sharpe ${formatNumber(metric.sharpeRatio)}`,
     `DD ${formatNumber(metric.maxDrawdownPercent)}%`,
     `${metric.totalTrades ?? '?'} trades`,
+    backtest.strategy?.sourceAvailability ? `source ${backtest.strategy.sourceAvailability}` : null,
   ].filter(Boolean).join(' | ');
 }
 

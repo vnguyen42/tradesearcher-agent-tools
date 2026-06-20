@@ -60,7 +60,7 @@ test('format helpers produce compact trader-readable output', () => {
   const backtest = {
     id: 123,
     symbol: { name: 'BTCUSD' },
-    strategy: { id: 456, name: 'Trend Strategy' },
+    strategy: { id: 456, name: 'Trend Strategy', sourceAvailability: 'yes' },
     timeframe: '60',
     latestTradeDate: '2026-01-02T00:00:00.000Z',
     metrics: {
@@ -78,6 +78,7 @@ test('format helpers produce compact trader-readable output', () => {
   assert.match(summary, /strategy #456/);
   assert.match(summary, /BTCUSD/);
   assert.match(summary, /latest 2026-01-02/);
+  assert.match(summary, /source yes/);
   assert.deepEqual(compactBacktestForComparison(backtest), {
     id: 123,
     symbol: 'BTCUSD',
@@ -92,6 +93,7 @@ test('format helpers produce compact trader-readable output', () => {
     totalTrades: 84,
     latestTradeDate: '2026-01-02T00:00:00.000Z',
     hiddenStrategyDetails: false,
+    sourceAvailability: 'yes',
   });
 });
 

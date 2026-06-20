@@ -33,7 +33,10 @@ tradesearcher search BTCUSD
 tradesearcher best AAPL
 tradesearcher backtest 12345 --details --trades --trade-limit 20
 tradesearcher strategy 6789 --source
+tradesearcher export 12345 --pine --out strategy.pine
 tradesearcher compare 12345 67890
+tradesearcher schema
+tradesearcher schema backtest
 ```
 
 Useful search sorts:
@@ -47,6 +50,16 @@ tradesearcher search BTCUSD --sort robustness
 ```
 
 `--equity` can return large JSON arrays. Use it after narrowing to final candidates.
+
+Use `tradesearcher schema` to print JSON command schemas for agents. Use `tradesearcher schema backtest` or `tradesearcher schema strategy` for one command.
+
+Search and best rows show `source yes`, `source no`, or `source private` when TradeSearcher knows whether Pine source code is available.
+
+Export Pine source for a backtest strategy:
+
+```bash
+tradesearcher export 12345 --pine --out strategy.pine
+```
 
 Free accounts hide high-performance backtests with a profit factor above 3. Premium shows these stronger backtests, more results, recent trades, and full strategy details.
 

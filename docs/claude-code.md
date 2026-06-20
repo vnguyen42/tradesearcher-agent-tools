@@ -28,4 +28,6 @@ Available tools:
 
 Tool schemas and examples are in `docs/mcp-tools.md`.
 
+For CLI-driven workflows, `tradesearcher schema` prints command schemas and `tradesearcher export BACKTEST_ID --pine --out file.pine` writes Pine source when available.
+
 Free accounts hide high-performance backtests with a profit factor above 3. Premium shows these stronger backtests, more results, recent trades, and full strategy details.

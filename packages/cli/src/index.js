@@ -25,9 +25,84 @@ const VALUE_FLAGS = new Set([
   'maxDrawdown',
   'sort',
   'order',
+  'out',
 ]);
-const BOOLEAN_FLAGS = new Set(['json', 'help', 'details', 'trades', 'equity', 'curves', 'source']);
+const BOOLEAN_FLAGS = new Set(['json', 'help', 'details', 'trades', 'equity', 'curves', 'source', 'pine']);
 const ALLOWED_FLAGS = new Set([...VALUE_FLAGS, ...BOOLEAN_FLAGS]);
+const COMMAND_SCHEMAS = {
+  auth: {
+    description: 'Save or inspect the TradeSearcher API key.',
+    positional: [{ name: 'subcommand', enum: ['login', 'status'], required: false }],
+    flags: commonFlags(),
+  },
+  symbols: {
+    description: 'Search symbols before searching backtests.',
+    positional: [{ name: 'query', type: 'string', required: true }],
+    flags: { ...commonFlags(), limit: numberFlag('Number of symbols to return.') },
+  },
+  search: {
+    description: 'Search existing backtests.',
+    positional: [{ name: 'symbol', type: 'string', required: true }],
+    flags: {
+      ...commonFlags(),
+      limit: numberFlag('Number of backtests to return.'),
+      market: enumFlag(ALLOWED_MARKETS),
+      timeframe: stringFlag('Example: 60, 240, D.'),
+      strategyType: enumFlag(ALLOWED_STRATEGY_TYPES),
+      minSharpe: numberFlag('Minimum Sharpe ratio.'),
+      minProfitFactor: numberFlag('Minimum profit factor.'),
+      maxDrawdown: numberFlag('Maximum drawdown percent.'),
+      sort: enumFlag(ALLOWED_SORTS),
+      order: enumFlag(ALLOWED_ORDERS),
+    },
+    responseHints: ['Use --json for full response shape.', 'Rows include strategy.sourceAvailability when the backend knows it.'],
+  },
+  best: {
+    description: 'Get top ranked backtests for a symbol.',
+    positional: [{ name: 'symbol', type: 'string', required: true }],
+    flags: { ...commonFlags(), limit: numberFlag('Number of backtests to return.') },
+    responseHints: ['Rows include strategy.sourceAvailability when the backend knows it.'],
+  },
+  backtest: {
+    description: 'Get one backtest with optional performance details, trades, and curves.',
+    positional: [{ name: 'backtestId', type: 'integer', required: true }],
+    flags: {
+      ...commonFlags(),
+      details: booleanFlag('Print all performance metric groups.'),
+      trades: booleanFlag('Request and print trades. Premium may be required.'),
+      tradeLimit: numberFlag('Number of trades to print.'),
+      equity: booleanFlag('Request equity and drawdown curves. Can be large in JSON.'),
+      curves: booleanFlag('Alias for --equity.'),
+    },
+    responseHints: ['Use --json --trades for machine-readable trades.', 'Use --json --equity for machine-readable equity and drawdown curves.'],
+  },
+  strategy: {
+    description: 'Get one strategy and optionally source code.',
+    positional: [{ name: 'strategyId', type: 'integer', required: true }],
+    flags: { ...commonFlags(), source: booleanFlag('Request Pine source code. Premium and source availability may be required.') },
+    responseHints: ['Use --json --source for machine-readable sourceCode.', 'sourceAvailability is yes, no, or private.'],
+  },
+  export: {
+    description: 'Export Pine source for a backtest strategy.',
+    positional: [{ name: 'backtestId', type: 'integer', required: true }],
+    flags: {
+      ...commonFlags(),
+      pine: booleanFlag('Export Pine source code. Required for now.'),
+      out: stringFlag('Output file path, for example file.pine. Required.'),
+    },
+    responseHints: ['Fails clearly if the backtest has no strategy id or the strategy source is unavailable.'],
+  },
+  compare: {
+    description: 'Compare several backtests in a compact table.',
+    positional: [{ name: 'backtestIds', type: 'integer[]', required: true, minItems: 2 }],
+    flags: commonFlags(),
+  },
+  schema: {
+    description: 'Print JSON schemas for CLI commands.',
+    positional: [{ name: 'command', type: 'string', required: false }],
+    flags: commonFlags(),
+  },
+};
 
 export async function main(argv = process.argv.slice(2), io = console) {
   try {
@@ -40,6 +115,7 @@ export async function main(argv = process.argv.slice(2), io = console) {
     });
 
     if (!command || command === 'help' || flags.help) return printHelp(io);
+    if (command === 'schema' || command === 'schemas') return printSchemas(args[0], io);
     if (command === 'auth') return await handleAuth(args, flags, client, io);
     if (command === 'symbols' || command === 'symbol') return printResponse(await client.searchSymbols({ query: args[0], limit: flags.limit }), flags, io);
     if (command === 'search') {
@@ -57,6 +133,7 @@ export async function main(argv = process.argv.slice(2), io = console) {
     if (command === 'strategy') return printResponse(await client.getStrategy(args[0], {
       includeSourceCode: flags.source,
     }), flags, io);
+    if (command === 'export') return await handleExport(args, flags, client, io);
     if (command === 'compare') {
       const responses = [];
       for (const id of args) responses.push(await client.getBacktest(id));
@@ -101,6 +178,37 @@ async function handleAuth(args, flags, client, io) {
     return;
   }
   throw new Error(`Unknown auth command: ${subcommand}`);
+}
+
+async function handleExport(args, flags, client, io) {
+  if (!flags.pine) throw new Error('Missing --pine. Example: tradesearcher export 12345 --pine --out strategy.pine');
+  if (!flags.out) throw new Error('Missing --out file. Example: tradesearcher export 12345 --pine --out strategy.pine');
+
+  const backtestResponse = await client.getBacktest(args[0]);
+  const backtest = backtestResponse.data;
+  const strategyId = backtest?.strategy?.id;
+  if (!strategyId) {
+    throw new Error('This backtest does not expose a strategy id. Try another backtest or use a Premium API key.');
+  }
+
+  const strategyResponse = await client.getStrategy(strategyId, { includeSourceCode: true });
+  const strategy = strategyResponse.data;
+  if (!strategy?.sourceCode) {
+    const availability = strategy?.sourceAvailability || 'unknown';
+    throw new Error(`Pine source is not available for strategy ${strategyId}. Source availability: ${availability}.`);
+  }
+
+  fs.writeFileSync(flags.out, strategy.sourceCode, 'utf8');
+  io.log(`Exported Pine source for strategy #${strategyId} from backtest #${backtest.id} to ${flags.out}.`);
+}
+
+function printSchemas(command, io) {
+  if (command) {
+    if (!COMMAND_SCHEMAS[command]) throw new Error(`Unknown schema command: ${command}`);
+    io.log(JSON.stringify({ [command]: COMMAND_SCHEMAS[command] }, null, 2));
+    return;
+  }
+  io.log(JSON.stringify(COMMAND_SCHEMAS, null, 2));
 }
 
 function printResponse(response, flags, io) {
@@ -148,7 +256,10 @@ Usage:
   tradesearcher backtest 12345 --trades
   tradesearcher backtest 12345 --trades --trade-limit 20
   tradesearcher strategy 6789 --source
+  tradesearcher export 12345 --pine --out strategy.pine
   tradesearcher compare 12345 67890
+  tradesearcher schema
+  tradesearcher schema backtest
 
 Options:
   --json                 Print JSON
@@ -167,6 +278,8 @@ Options:
   --min-sharpe <n>
   --min-profit-factor <n>
   --max-drawdown <n>
+  --pine                 Export Pine source code
+  --out <file>           Output file for export
 `);
 }
 
@@ -239,6 +352,7 @@ function formatStrategySummary(strategy) {
     averages.profitFactor != null ? `avg PF ${formatNumber(averages.profitFactor)}` : null,
     averages.sharpeRatio != null ? `avg Sharpe ${formatNumber(averages.sharpeRatio)}` : null,
     averages.maxDrawdownPercent != null ? `avg DD ${formatPercent(averages.maxDrawdownPercent)}` : null,
+    strategy.sourceAvailability ? `source ${strategy.sourceAvailability}` : null,
   ].filter(Boolean).join(' | ');
 }
 
@@ -483,7 +597,7 @@ function validateArgs(command, args, flags) {
   validateFlags(flags);
   if (!command || command === 'help' || flags.help) return;
 
-  const knownCommands = ['auth', 'symbols', 'symbol', 'search', 'best', 'backtest', 'strategy', 'compare'];
+  const knownCommands = ['auth', 'symbols', 'symbol', 'search', 'best', 'backtest', 'strategy', 'export', 'compare', 'schema', 'schemas'];
   if (!knownCommands.includes(command)) throw new Error(`Unknown command: ${command}`);
 
   if ((command === 'symbols' || command === 'symbol') && !args[0]) throw new Error('Missing symbol search text. Example: tradesearcher symbols AAPL');
@@ -491,10 +605,12 @@ function validateArgs(command, args, flags) {
   if (command === 'best' && !args[0]) throw new Error('Missing symbol. Example: tradesearcher best AAPL');
   if (command === 'backtest' && !args[0]) throw new Error('Missing backtest id. Example: tradesearcher backtest 12345');
   if (command === 'strategy' && !args[0]) throw new Error('Missing strategy id. Example: tradesearcher strategy 6789');
+  if (command === 'export' && !args[0]) throw new Error('Missing backtest id. Example: tradesearcher export 12345 --pine --out strategy.pine');
   if (command === 'compare' && args.length < 2) throw new Error('Compare needs at least two backtest ids. Example: tradesearcher compare 12345 67890');
   validatePositionalArgs(command, args);
   if (command === 'backtest') validatePositiveIntegerFlag('backtest id', args[0]);
   if (command === 'strategy') validatePositiveIntegerFlag('strategy id', args[0]);
+  if (command === 'export') validatePositiveIntegerFlag('backtest id', args[0]);
   if (command === 'compare') args.forEach((id) => validatePositiveIntegerFlag('backtest id', id));
 
   if (flags.market && !ALLOWED_MARKETS.includes(flags.market)) throw new Error(`Bad --market value. Use one of: ${ALLOWED_MARKETS.join(', ')}.`);
@@ -517,6 +633,12 @@ function validatePositionalArgs(command, args) {
   if (command === 'backtest') {
     const extras = args.slice(1).filter((arg) => !allowedBacktestWords.has(arg));
     if (extras.length > 0) throw new Error(`Unexpected argument: ${extras[0]}`);
+  }
+  if (command === 'export' && args.length > 1) {
+    throw new Error(`Unexpected argument: ${args[1]}`);
+  }
+  if ((command === 'schema' || command === 'schemas') && args.length > 1) {
+    throw new Error(`Unexpected argument: ${args[1]}`);
   }
   if (command === 'auth') {
     const subcommand = args[0] || 'status';
@@ -661,6 +783,30 @@ function formatList(value) {
     })
     .filter(Boolean);
   return cleaned.length ? cleaned.join('; ') : null;
+}
+
+function commonFlags() {
+  return {
+    json: booleanFlag('Print JSON.'),
+    apiKey: stringFlag('Use an API key once.'),
+    apiUrl: stringFlag('Use another TradeSearcher API URL.'),
+  };
+}
+
+function booleanFlag(description) {
+  return { type: 'boolean', description };
+}
+
+function stringFlag(description) {
+  return { type: 'string', description };
+}
+
+function numberFlag(description) {
+  return { type: 'number', description };
+}
+
+function enumFlag(values) {
+  return { type: 'string', enum: values };
 }
 
 function formatDate(value) {

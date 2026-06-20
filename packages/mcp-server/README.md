@@ -51,6 +51,12 @@ Inspect one backtest without flooding context. `includeEquityCurve` can return t
 }
 ```
 
+Backtest rows include `strategy.sourceAvailability` when known:
+
+- `yes`: source code is available to this account
+- `no`: source code is not available for this strategy
+- `private`: source exists but this account cannot view it
+
 The public repo also includes `docs/mcp-tools.md` with the same workflow.
 
 ## Tool schemas
@@ -111,6 +117,8 @@ Allowed `sort` values: `sharpe`, `sharpeRatio`, `profitFactor`, `roi`, `netProfi
   "includeSourceCode": "boolean, optional"
 }
 ```
+
+When `includeSourceCode` is true and source is available, the response includes `sourceCode`.
 
 ### `compare_backtests`
 
