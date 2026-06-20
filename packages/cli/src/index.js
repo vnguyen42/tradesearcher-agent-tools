@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { createClient, formatLimitNotice, summarizeBacktest, compactBacktestForComparison, limitTradesInResponse } from '@tradesearcher/core';
 
 const CONFIG_DIR = path.join(os.homedir(), '.tradesearcher');
@@ -827,6 +828,15 @@ function kebabCase(value) {
   return value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun()) {
   main();
+}
+
+function isDirectRun() {
+  if (!process.argv[1]) return false;
+  try {
+    return fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
+  } catch (error) {
+    return false;
+  }
 }
