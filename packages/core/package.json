@@ -3,6 +3,23 @@
   "version": "0.1.0",
   "description": "TradeSearcher API client for agent tools",
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/vnguyen42/tradesearcher-agent-tools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vnguyen42/tradesearcher-agent-tools.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/vnguyen42/tradesearcher-agent-tools/issues"
+  },
+  "keywords": [
+    "tradesearcher",
+    "trading",
+    "backtesting",
+    "sdk",
+    "agents"
+  ],
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js"

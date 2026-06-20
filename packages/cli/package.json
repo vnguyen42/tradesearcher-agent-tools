@@ -3,6 +3,24 @@
   "version": "0.1.0",
   "description": "TradeSearcher command line tools for agents and traders",
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/vnguyen42/tradesearcher-agent-tools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vnguyen42/tradesearcher-agent-tools.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/vnguyen42/tradesearcher-agent-tools/issues"
+  },
+  "keywords": [
+    "tradesearcher",
+    "trading",
+    "backtesting",
+    "cli",
+    "mcp",
+    "agents"
+  ],
   "bin": {
     "tradesearcher": "src/index.js"
   },

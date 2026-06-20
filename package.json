@@ -2,6 +2,12 @@
   "name": "tradesearcher-agent-tools",
   "version": "0.1.0",
   "private": true,
+  "description": "TradeSearcher CLI, SDK, and MCP server for coding agents",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vnguyen42/tradesearcher-agent-tools.git"
+  },
   "workspaces": [
     "packages/*"
   ],

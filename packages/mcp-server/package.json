@@ -3,6 +3,25 @@
   "version": "0.1.0",
   "description": "TradeSearcher MCP server for Claude Code, Codex, and other agents",
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/vnguyen42/tradesearcher-agent-tools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vnguyen42/tradesearcher-agent-tools.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/vnguyen42/tradesearcher-agent-tools/issues"
+  },
+  "keywords": [
+    "tradesearcher",
+    "trading",
+    "backtesting",
+    "mcp",
+    "claude-code",
+    "codex",
+    "agents"
+  ],
   "bin": {
     "tradesearcher-mcp": "src/index.js"
   },

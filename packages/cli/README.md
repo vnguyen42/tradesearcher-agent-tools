@@ -9,5 +9,4 @@ tradesearcher search BTCUSD
 tradesearcher best AAPL
 ```
 
-Free accounts receive limited results. Premium unlocks more results, recent trades, and full strategy details.
-
+Free accounts hide high-performance backtests with a profit factor above 3. Premium shows these stronger backtests, more results, recent trades, and full strategy details.

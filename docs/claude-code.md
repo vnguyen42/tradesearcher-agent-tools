@@ -28,4 +28,4 @@ Available tools:
 
 Tool schemas and examples are in `docs/mcp-tools.md`.
 
-Free accounts get limited output. Premium unlocks more complete strategy and backtest details.
+Free accounts hide high-performance backtests with a profit factor above 3. Premium shows these stronger backtests, more results, recent trades, and full strategy details.

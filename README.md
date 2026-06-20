@@ -48,7 +48,7 @@ tradesearcher search BTCUSD --sort robustness
 
 `--equity` can return large JSON arrays. Use it after narrowing to final candidates.
 
-Free accounts can view limited results. Premium unlocks more results, recent trades, and full strategy details.
+Free accounts hide high-performance backtests with a profit factor above 3. Premium shows these stronger backtests, more results, recent trades, and full strategy details.
 
 Upgrade: https://tradesearcher.ai/app/premium
 

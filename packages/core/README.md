@@ -9,5 +9,4 @@ const client = createClient({ apiKey: process.env.TRADESEARCHER_API_KEY });
 const results = await client.searchBacktests({ symbol: 'BTCUSD' });
 ```
 
-Free accounts receive limited results. Premium unlocks more results, recent trades, and full strategy details.
-
+Free accounts hide high-performance backtests with a profit factor above 3. Premium shows these stronger backtests, more results, recent trades, and full strategy details.
