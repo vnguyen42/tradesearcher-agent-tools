@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'https://api.tradesearcher.ai';
+const DEFAULT_API_BASE_URL = 'https://strapi.tradesearcher.ai';
 
 export class TradeSearcherError extends Error {
   constructor(message, { status, response } = {}) {
