@@ -1,6 +1,8 @@
 # @tradesearcher/mcp-server
 
-MCP server for Claude Code, Codex, and other coding agents.
+MCP server for Claude Code, Codex, Cursor, and other coding agents.
+
+Docs: <https://docs.tradesearcher.ai/developer-tools/mcp-server> · Create an API key: <https://tradesearcher.ai/app/account/my-account#agent-api-keys>
 
 ```bash
 npx -y @tradesearcher/mcp-server

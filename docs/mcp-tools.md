@@ -1,5 +1,8 @@
 # MCP Tool Schemas
 
+> The public version of this reference is at
+> <https://docs.tradesearcher.ai/developer-tools/mcp-server> — keep the two in sync when tools change.
+
 Use these tools when Claude Code, Codex, or another agent needs TradeSearcher strategy and backtest data.
 
 Recommended flow:

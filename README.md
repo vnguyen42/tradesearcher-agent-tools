@@ -1,6 +1,8 @@
 # TradeSearcher Agent Tools
 
-Use TradeSearcher strategies and existing backtests inside Claude Code, Codex, and other coding agents.
+Use TradeSearcher strategies and existing backtests inside Claude Code, Codex, Cursor, and other coding agents.
+
+**Documentation:** <https://docs.tradesearcher.ai/developer-tools/> · **Create an API key:** <https://tradesearcher.ai/app/account/my-account#agent-api-keys>
 
 ## Install
 
@@ -67,7 +69,11 @@ Upgrade: https://tradesearcher.ai/app/premium
 
 ## MCP tools
 
-See `docs/mcp-tools.md` for tool schemas, examples, and the recommended agent workflow.
+See [`docs/mcp-tools.md`](docs/mcp-tools.md) or the public reference at
+<https://docs.tradesearcher.ai/developer-tools/mcp-server> for tool schemas, examples, and the
+recommended agent workflow.
+
+Per-client setup: [Claude Code](docs/claude-code.md) · [Codex](docs/codex.md).
 
 ## Release check
 

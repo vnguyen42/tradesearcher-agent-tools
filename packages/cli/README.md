@@ -2,6 +2,8 @@
 
 Command line tools for TradeSearcher strategies and existing backtests.
 
+Docs: <https://docs.tradesearcher.ai/developer-tools/cli> · Create an API key: <https://tradesearcher.ai/app/account/my-account#agent-api-keys>
+
 ```bash
 npm install -g @tradesearcher/cli
 tradesearcher auth login
